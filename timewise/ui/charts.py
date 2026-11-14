@@ -7,9 +7,15 @@ import plotly.graph_objects as go
 from timewise.analytics import format_duration
 from timewise.constants import ACTIVITY_CATEGORY_COLORS
 
-_COMPLETED_COLOR = "#2f9e44"
-_REMAINING_COLOR = "#dee2e6"
-_COMPACT_MARGIN = {"t": 10, "b": 10, "l": 10, "r": 10}
+_COMPLETED_COLOR = "#12a594"
+_REMAINING_COLOR = "#e9e2d6"
+_TRANSPARENT = "rgba(0, 0, 0, 0)"
+_BASE_LAYOUT = {
+    "margin": {"t": 10, "b": 10, "l": 10, "r": 10},
+    "height": 270,
+    "paper_bgcolor": _TRANSPARENT,
+    "plot_bgcolor": _TRANSPARENT,
+}
 
 
 def _donut(labels: list[str], values: list[int], colors: list[str], center_text: str):
@@ -17,18 +23,17 @@ def _donut(labels: list[str], values: list[int], colors: list[str], center_text:
         go.Pie(
             labels=labels,
             values=values,
-            hole=0.65,
-            marker={"colors": colors},
+            hole=0.68,
+            marker={"colors": colors, "line": {"color": "#fbf8f3", "width": 4}},
             sort=False,
             textinfo="none",
             hovertemplate="%{label}: %{percent}<extra></extra>",
         )
     )
     figure.update_layout(
-        annotations=[{"text": center_text, "showarrow": False, "font": {"size": 22}}],
-        margin=_COMPACT_MARGIN,
-        height=260,
+        annotations=[{"text": f"<b>{center_text}</b>", "showarrow": False, "font": {"size": 24}}],
         legend={"orientation": "h", "y": -0.05, "x": 0.5, "xanchor": "center"},
+        **_BASE_LAYOUT,
     )
     return figure
 
@@ -62,14 +67,14 @@ def daily_trend_bars(trend: dict[date, dict[str, int]]) -> go.Figure:
             name=category,
             x=days,
             y=[round(totals[category] / 60, 2) for totals in trend.values()],
-            marker_color=color,
+            marker={"color": color, "cornerradius": 6},
             hovertemplate="%{y} h<extra>" + category + "</extra>",
         )
     figure.update_layout(
         barmode="stack",
-        margin=_COMPACT_MARGIN,
-        height=260,
-        yaxis_title="Hours",
+        bargap=0.35,
+        yaxis={"title": "Hours", "gridcolor": "#e9e2d6"},
         legend={"orientation": "h", "y": -0.2, "x": 0.5, "xanchor": "center"},
+        **_BASE_LAYOUT,
     )
     return figure

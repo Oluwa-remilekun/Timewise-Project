@@ -1,5 +1,7 @@
 """Pure calculations behind the dashboard. No database or UI access."""
 
+from collections.abc import Collection
+from dataclasses import dataclass
 from datetime import date, timedelta
 
 from timewise.constants import ACTIVITY_CATEGORIES
@@ -39,3 +41,38 @@ def fill_daily_trend(
         trend[day] = {category: logged.get(category, 0) for category in ACTIVITY_CATEGORIES}
         day += timedelta(days=1)
     return trend
+
+
+def logging_streak(logged_days: Collection[date], today: date) -> int:
+    """Count consecutive logged days ending today, or yesterday if today is still empty."""
+    day = today if today in logged_days else today - timedelta(days=1)
+    streak = 0
+    while day in logged_days:
+        streak += 1
+        day -= timedelta(days=1)
+    return streak
+
+
+@dataclass(frozen=True)
+class DayVerdict:
+    emoji: str
+    title: str
+    detail: str
+
+
+def day_verdict(summary: dict[str, int]) -> DayVerdict | None:
+    """Sum up how a day went in one line, or None when nothing was logged."""
+    if sum(summary.values()) == 0:
+        return None
+    shares = category_shares(summary)
+    if shares["Productive"] >= 60:
+        return DayVerdict(
+            "🎯", "Locked in", f"{shares['Productive']}% of the tracked time was productive."
+        )
+    if shares["Unproductive"] >= 50:
+        return DayVerdict(
+            "🌀", "Drifting", f"Unproductive time took {shares['Unproductive']}% of the day."
+        )
+    if shares["Fun"] >= 50:
+        return DayVerdict("🎉", "Play day", f"Fun took {shares['Fun']}% of the tracked time.")
+    return DayVerdict("⚖️", "Balanced day", "No single category took over the day.")

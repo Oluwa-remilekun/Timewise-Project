@@ -8,4 +8,18 @@ gatherUsageStats = false
 toolbarMode = "minimal"
 
 [theme]
-primaryColor = "#3b5bdb"
+base = "light"
+primaryColor = "#0B7A6E"
+backgroundColor = "#FBF8F3"
+secondaryBackgroundColor = "#F1ECE3"
+textColor = "#1D2B36"
+borderColor = "#E4DCCF"
+baseRadius = "0.9rem"
+font = "DM Sans:https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap, sans-serif"
+headingFont = "Bricolage Grotesque:https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&display=swap, sans-serif"
+
+[theme.sidebar]
+backgroundColor = "#103B3C"
+secondaryBackgroundColor = "#1B5152"
+textColor = "#EAF4F2"
+borderColor = "#2A6566"

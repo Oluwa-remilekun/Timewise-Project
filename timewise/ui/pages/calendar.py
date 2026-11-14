@@ -12,6 +12,7 @@ from timewise.errors import ValidationError
 from timewise.models import Event
 from timewise.repositories import events
 from timewise.ui import session
+from timewise.ui.components.page_header import render_page_header
 
 _VERSION_KEY = "calendar_version"
 _CALENDAR_OPTIONS = {
@@ -28,7 +29,32 @@ _CALENDAR_OPTIONS = {
     "height": 650,
     "editable": False,
     "selectable": False,
+    "eventColor": "#0b7a6e",
 }
+_CALENDAR_CSS = """
+    .fc .fc-button-primary {
+        background-color: #0b7a6e;
+        border-color: #0b7a6e;
+        border-radius: 0.6rem;
+        text-transform: capitalize;
+    }
+    .fc .fc-button-primary:not(:disabled).fc-button-active,
+    .fc .fc-button-primary:hover {
+        background-color: #103b3c;
+        border-color: #103b3c;
+    }
+    .fc .fc-toolbar-title {
+        font-size: 1.4rem;
+        font-weight: 700;
+    }
+    .fc .fc-day-today {
+        background-color: rgba(245, 184, 61, 0.14) !important;
+    }
+    .fc-event {
+        border-radius: 0.5rem;
+        padding: 2px 4px;
+    }
+"""
 
 
 def _reset_calendar() -> None:
@@ -77,7 +103,7 @@ def _event_dialog(event: Event | None = None, draft: EventDraft | None = None) -
         except ValidationError as error:
             st.error(str(error))
         else:
-            _close_dialog("Event saved.")
+            _close_dialog("Event saved 📅")
     if event and delete.button("Delete", width="stretch", key=f"event_delete_{key}"):
         events.delete_event(user_id, event.id)
         _close_dialog("Event deleted.")
@@ -100,7 +126,7 @@ def _parse_quick_event(text: str) -> EventDraft | None:
 
 def render_calendar_page() -> None:
     user = session.current_user()
-    st.title("Calendar")
+    render_page_header("Calendar", "See the week ahead and block out time for what matters.")
 
     dialog_opened = False
     manual_column, quick_column = st.columns([1, 4], vertical_alignment="bottom")
@@ -108,7 +134,7 @@ def render_calendar_page() -> None:
         _event_dialog()
         dialog_opened = True
     with quick_column.form("quick_event_form", border=False):
-        text_column, submit_column = st.columns([4, 1], vertical_alignment="bottom")
+        text_column, submit_column = st.columns([7, 3], vertical_alignment="bottom")
         quick_text = text_column.text_input(
             "Or describe it and let AI fill in the details",
             placeholder="e.g. Study group tomorrow at 2 PM for 90 minutes",
@@ -133,6 +159,7 @@ def render_calendar_page() -> None:
             for event in events.list_events(user.id)
         ],
         options=_CALENDAR_OPTIONS,
+        custom_css=_CALENDAR_CSS,
         callbacks=["eventClick"],
         key=f"calendar_{st.session_state.get(_VERSION_KEY, 0)}",
     )

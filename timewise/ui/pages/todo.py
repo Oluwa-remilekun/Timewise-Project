@@ -5,16 +5,26 @@ from datetime import date
 import streamlit as st
 
 from timewise.ai import advisor
-from timewise.constants import MAX_TITLE_LENGTH, TASK_CATEGORIES, TASK_CATEGORY_COLORS
+from timewise.constants import (
+    MAX_TITLE_LENGTH,
+    TASK_CATEGORIES,
+    TASK_CATEGORY_COLORS,
+    TASK_CATEGORY_EMOJI,
+)
 from timewise.errors import ValidationError
 from timewise.models import Task
 from timewise.repositories import tasks
 from timewise.ui import session
 from timewise.ui.components.advice import render_advice
+from timewise.ui.components.page_header import render_page_header
 from timewise.ui.components.task_checkbox import render_task_checkbox
 from timewise.ui.formatting import format_date
 
 _FILTERS = ("Open", "Completed", "All")
+
+
+def _category_label(category: str) -> str:
+    return f"{TASK_CATEGORY_EMOJI[category]} {category}"
 
 
 def _render_add_task_form(today: date) -> None:
@@ -24,9 +34,11 @@ def _render_add_task_form(today: date) -> None:
         )
         description = st.text_area("Notes (optional)", height=80)
         category_column, date_column = st.columns(2)
-        category = category_column.selectbox("Category", TASK_CATEGORIES)
+        category = category_column.selectbox(
+            "Category", TASK_CATEGORIES, format_func=_category_label
+        )
         due_date = date_column.date_input("Due date", value=today, format="MM/DD/YYYY")
-        submitted = st.form_submit_button("Add task", type="primary")
+        submitted = st.form_submit_button("Add task", type="primary", icon=":material/add:")
 
     if submitted:
         try:
@@ -34,7 +46,7 @@ def _render_add_task_form(today: date) -> None:
         except ValidationError as error:
             st.error(str(error))
         else:
-            session.flash("Task added.")
+            session.flash("Task added 📝")
             st.rerun()
 
 
@@ -46,7 +58,7 @@ def _due_label(task: Task, today: date) -> str:
 
 
 def _render_task(task: Task, today: date) -> None:
-    with st.container(border=True):
+    with st.container(border=True, key=f"card-task-{task.id}"):
         checkbox, remove = st.columns([5, 1], vertical_alignment="center")
         with checkbox:
             render_task_checkbox(task, task.title, key_prefix="todo_task")
@@ -70,8 +82,15 @@ def render_todo_page() -> None:
     today = session.local_today()
     all_tasks = tasks.list_tasks(user.id)
     open_tasks = [task for task in all_tasks if not task.is_completed]
+    completed_count = len(all_tasks) - len(open_tasks)
 
-    st.title("To-do")
+    render_page_header("To-do", "Plan the work, then check it off.")
+
+    if all_tasks:
+        st.progress(
+            completed_count / len(all_tasks),
+            text=f"✅ {completed_count} of {len(all_tasks)} tasks done",
+        )
 
     add_column, advice_column = st.columns(2, gap="large")
     with add_column:
@@ -101,12 +120,12 @@ def render_todo_page() -> None:
         visible = all_tasks
 
     if not visible:
-        st.info("No tasks to show.")
+        st.info("No tasks to show.", icon="🌱")
         return
 
     for column, category in zip(st.columns(len(TASK_CATEGORIES)), TASK_CATEGORIES, strict=True):
         with column:
-            st.markdown(f"#### :{TASK_CATEGORY_COLORS[category]}[{category}]")
+            st.markdown(f"#### :{TASK_CATEGORY_COLORS[category]}[{_category_label(category)}]")
             for task in visible:
                 if task.category == category:
                     _render_task(task, today)

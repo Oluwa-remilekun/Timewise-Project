@@ -21,3 +21,11 @@ def format_repeat(interval_minutes: int) -> str:
     if interval_minutes <= 0:
         return "Once"
     return f"Every {format_duration(interval_minutes)}"
+
+
+def greeting(now: datetime) -> str:
+    if now.hour < 12:
+        return "Good morning"
+    if now.hour < 18:
+        return "Good afternoon"
+    return "Good evening"

@@ -16,6 +16,7 @@ _DEFAULTS = {
     "auth_view": "login",
     "recovery_code": None,
     "flash_message": None,
+    "celebrate": False,
 }
 
 
@@ -65,11 +66,19 @@ def flash(message: str) -> None:
     st.session_state.flash_message = message
 
 
+def celebrate() -> None:
+    """Release balloons after the next rerun."""
+    st.session_state.celebrate = True
+
+
 def show_flash() -> None:
     message = st.session_state.flash_message
     if message:
         st.session_state.flash_message = None
         st.toast(message)
+    if st.session_state.celebrate:
+        st.session_state.celebrate = False
+        st.balloons()
 
 
 def local_now() -> datetime:

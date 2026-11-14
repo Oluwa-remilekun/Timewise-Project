@@ -56,13 +56,13 @@ def test_sign_up_signs_in_and_shows_the_recovery_code_once():
     app = sign_up(launch())
 
     assert not app.exception
-    assert app.title[0].value == "Welcome, Remi"
+    assert app.title[0].value.endswith(", Remi")
     recovery_code = app.code[0].value
     assert len(recovery_code) == 14
 
     button(app, "I have saved it").click().run()
     assert not app.code
-    assert app.title[0].value == "Welcome, Remi"
+    assert app.title[0].value.endswith(", Remi")
 
 
 def test_sign_up_reports_validation_errors():
@@ -76,7 +76,7 @@ def test_login_then_sign_out_returns_to_the_login_form(user):
     app.text_input[0].set_value("remi")
     app.text_input[1].set_value("correct-horse")
     button(app, "Sign in").click().run()
-    assert app.title[0].value == "Welcome, Remi"
+    assert app.title[0].value.endswith(", Remi")
 
     button(app, "Sign out").click().run()
     assert app.title[0].value == "TimeWise"
@@ -94,7 +94,7 @@ def test_password_recovery_signs_in_and_issues_a_new_code():
     button(app, "Reset password").click().run()
 
     assert not app.exception
-    assert app.title[0].value == "Welcome, Remi"
+    assert app.title[0].value.endswith(", Remi")
     assert app.code[0].value != recovery_code
     assert accounts.authenticate("remi", "brand-new-pass") is not None
 
@@ -151,9 +151,10 @@ def test_every_page_renders_with_data(populated_user, page_name):
 def test_home_summarizes_the_day(populated_user):
     app = open_page("home", populated_user)
     metrics = {metric.label: metric.value for metric in app.metric}
-    assert metrics["Tracked today"] == "2h"
-    assert metrics["Productive share"] == "75%"
-    assert metrics["Tasks done today"] == "0 of 1"
+    assert metrics["⏱️ Tracked today"] == "2h"
+    assert metrics["🎯 Productive share"] == "75%"
+    assert metrics["✅ Tasks done today"] == "0 of 1"
+    assert any("1 day" in block.value for block in app.markdown)
     assert any("Lab report" in warning.value for warning in app.warning)
 
 
@@ -164,6 +165,7 @@ def test_checking_a_task_on_home_saves_it(populated_user):
     assert not app.exception
     due_today = tasks.list_tasks_due_on(populated_user.id, date.today())
     assert due_today[0].is_completed is True
+    assert app.session_state.celebrate is True
 
 
 def test_dismissing_a_due_reminder_removes_it(populated_user):
@@ -179,11 +181,12 @@ def test_analyser_shows_breakdown_and_rule_based_advice_without_a_key(populated_
     app = open_page("analyser", populated_user)
     metrics = {metric.label: metric.value for metric in app.metric}
     assert metrics == {
-        "Total tracked": "2h",
-        "Productive": "1h 30m",
-        "Unproductive": "30m",
-        "Fun": "0m",
+        "⏱️ Total tracked": "2h",
+        "🎯 Productive": "1h 30m",
+        "🌀 Unproductive": "30m",
+        "🎉 Fun": "0m",
     }
+    assert any("Locked in" in block.value for block in app.markdown)
 
     button(app, "Get suggestions").click().run()
     assert not app.exception

@@ -6,19 +6,28 @@ from timewise.auth import accounts
 from timewise.errors import ValidationError
 from timewise.ui import session
 
+_FEATURES = (
+    ("⏱️", "Log your day", "Capture what you did in seconds."),
+    ("📊", "See where time goes", "Clear breakdowns by category and by week."),
+    ("✨", "Get advice that fits", "AI suggestions grounded in your own data."),
+)
+
 
 def _show(view: str) -> None:
     st.session_state.auth_view = view
     st.rerun()
 
 
-def _header(subtitle: str) -> None:
-    st.title("TimeWise", text_alignment="center")
-    st.caption(subtitle, text_alignment="center")
+def _render_brand_panel() -> None:
+    with st.container(key="auth-hero"):
+        st.title("TimeWise")
+        st.markdown("### Spend your time on purpose.")
+        for emoji, heading, detail in _FEATURES:
+            st.markdown(f"{emoji} **{heading}**  \n{detail}")
 
 
 def _render_login() -> None:
-    _header("Log your day, see where the time goes, and get advice that fits.")
+    st.subheader("Welcome back 👋")
     with st.form("login_form"):
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
@@ -41,7 +50,7 @@ def _render_login() -> None:
 
 
 def _render_signup() -> None:
-    _header("Create your account")
+    st.subheader("Create your account 🚀")
     with st.form("signup_form"):
         name = st.text_input("Name")
         username = st.text_input("Username")
@@ -71,7 +80,8 @@ def _render_signup() -> None:
 
 
 def _render_recovery() -> None:
-    _header("Reset your password with the recovery code you saved at sign-up")
+    st.subheader("Reset your password 🔑")
+    st.caption("Use the recovery code you saved when you signed up.")
     with st.form("recovery_form"):
         username = st.text_input("Username")
         recovery_code = st.text_input("Recovery code", placeholder="XXXX-XXXX-XXXX")
@@ -105,4 +115,8 @@ _VIEWS = {
 
 
 def render_auth_page() -> None:
-    _VIEWS[st.session_state.auth_view]()
+    _, brand, form, _ = st.columns([0.4, 4, 3.6, 0.4], gap="large", vertical_alignment="center")
+    with brand:
+        _render_brand_panel()
+    with form:
+        _VIEWS[st.session_state.auth_view]()

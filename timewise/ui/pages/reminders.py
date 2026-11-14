@@ -10,6 +10,7 @@ from timewise.models import Reminder
 from timewise.repositories import events, reminders, tasks
 from timewise.ui import session
 from timewise.ui.components.due_reminders import render_due_reminders, split_due
+from timewise.ui.components.page_header import render_page_header
 from timewise.ui.formatting import format_date, format_datetime, format_repeat
 
 _CUSTOM_REPEAT = "Custom"
@@ -90,7 +91,7 @@ def _add_reminder_dialog() -> None:
         except ValidationError as error:
             st.error(str(error))
         else:
-            session.flash("Reminder added.")
+            session.flash("Reminder added 🔔")
             st.rerun()
 
 
@@ -122,7 +123,7 @@ def _edit_reminder_dialog(reminder: Reminder) -> None:
 
 def _render_reminder(reminder: Reminder) -> Reminder | None:
     """Render one reminder card and return the reminder if its edit button was clicked."""
-    with st.container(border=True):
+    with st.container(border=True, key=f"card-reminder-{reminder.id}"):
         badge, title, schedule, edit = st.columns([1, 4, 4, 1], vertical_alignment="center")
         badge.badge(reminder.source_type, color=_SOURCE_BADGE_COLORS[reminder.source_type])
         title.markdown(f"**{reminder.title}**")
@@ -146,7 +147,7 @@ def render_reminders_page() -> None:
     all_reminders = reminders.list_reminders(user.id)
     due, _ = split_due(all_reminders, now)
 
-    st.title("Reminders")
+    render_page_header("Reminders", "Nudges for the events and tasks you can't afford to miss.")
     add_column, filter_column, sort_column = st.columns([1, 2, 1], vertical_alignment="bottom")
     add_clicked = add_column.button("Add reminder", type="primary", icon=":material/add:")
     selected_filter = filter_column.segmented_control(
@@ -165,7 +166,7 @@ def render_reminders_page() -> None:
         visible.sort(key=lambda reminder: reminder.title.lower())
 
     if not visible:
-        st.info("No reminders yet. Add one for an upcoming event or an open task.")
+        st.info("No reminders yet. Add one for an upcoming event or an open task.", icon="🔕")
 
     to_edit = None
     for reminder in visible:

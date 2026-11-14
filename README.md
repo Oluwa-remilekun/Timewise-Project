@@ -1,19 +1,27 @@
 # TimeWise
 
-An AI-assisted productivity and time-management web app. TimeWise lets you log
-what you did, shows where the time went, and uses a language model grounded in
-your own activity data to suggest what to change: **log → analyze → advise**.
+TimeWise is the AI-assisted productivity and time-management web app I built
+for my Junior Seminar project. It records daily activities, shows where the
+time went, and uses a language model grounded in that activity data to suggest
+what to change: **log → analyze → advise**.
 
-Junior Seminar project by Oluwaremilekun Adeshina, 2026.
+Oluwaremilekun Adeshina, 2026.
+
+## Why I built it
+
+Most to-do and calendar apps stop at tracking. They show what was done but
+leave the reflection to the user. I wanted to test whether grounding a language
+model in a person's own activity log produces more actionable guidance than a
+static dashboard alone.
 
 ## Features
 
 | Area | What it does |
 | --- | --- |
 | Activity logging | Log activities with a title, duration and category (Productive, Unproductive, Fun). |
-| Time analytics | Per-category totals and shares for any day, a breakdown chart and a 7-day trend. |
+| Time analytics | Per-category totals and shares for any day, a breakdown chart, a 7-day trend, a one-line verdict on the day and a logging streak. |
 | AI suggestions | Gemini turns the day's activity summary into short, personalized advice. |
-| Tasks | To-do list by category with completion tracking, overdue flags and AI prioritization. |
+| Tasks | To-do list by category with completion tracking, overdue flags, AI prioritization and a small celebration when the day's tasks are done. |
 | Calendar | Week, month and day views; create events manually or from a sentence ("Study group tomorrow at 2 PM"). |
 | Reminders | One-off or repeating reminders for events and tasks, surfaced on the home page when due. |
 | Accounts | Sign-up, sign-in, recovery codes, salted password hashing and an encrypted "keep me signed in" cookie. |
@@ -42,8 +50,8 @@ streamlit run app.py
 ```
 
 The app opens at http://localhost:8501. No other setup is needed: data is
-stored in `data/timewise.db`, which is created on first run. Streamlit reloads
-the page whenever you save a source file, so code changes show up immediately.
+stored in `data/timewise.db`, which is created on first run. I enabled
+Streamlit's run-on-save, so the page reloads whenever a source file is saved.
 
 ### Enable AI suggestions
 
@@ -54,9 +62,12 @@ the page whenever you save a source file, so code changes show up immediately.
 Without a key the app still works and shows rule-based tips in place of
 Gemini's suggestions. AI event creation on the calendar requires a key.
 
+I chose the Gemini API over Vertex AI because its free tier needs no billing
+account, which keeps the project free to run.
+
 ## Configuration
 
-Settings are read from environment variables or a local `.env` file.
+I keep every setting in environment variables, or in a local `.env` file during development.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -84,10 +95,12 @@ timewise/
   auth/                     Password hashing, accounts, login sessions
   ai/                       Gemini client, prompts, advisor, event parser
   ui/                       Streamlit pages, components, charts, session state
+    assets/                 Logo and stylesheet
+.streamlit/config.toml      Colour theme and fonts
 tests/                      Unit tests and UI tests
 ```
 
-The core loop from the proposal maps onto the code as follows:
+The core loop from my proposal maps onto the code as follows:
 
 1. **Log**: `ui/pages/analyser.py` collects an activity and calls `repositories/activities.add_activity`.
 2. **Store**: the repository writes it with a parameterized `INSERT`.
@@ -95,8 +108,9 @@ The core loop from the proposal maps onto the code as follows:
 4. **Prompt**: `ai/prompts.py` builds a prompt from the totals and the individual activities.
 5. **Advise**: `ai/advisor.py` returns Gemini's reply, or rule-based tips if the model is unavailable.
 
-Every query is written once and runs unchanged on SQLite and BigQuery. Queries
-use named parameters throughout; user input is never interpolated into SQL.
+I wrote every query once so that it runs unchanged on SQLite and BigQuery.
+Queries use named parameters throughout; user input is never interpolated into
+SQL.
 
 ## Tests
 
@@ -105,12 +119,12 @@ pytest          # unit and UI tests
 ruff check .    # lint
 ```
 
-Tests run against a temporary SQLite database and a stubbed Gemini client, so
-they need no credentials or network access.
+My tests run against a temporary SQLite database and a stubbed Gemini client,
+so they need no credentials or network access.
 
 ## Deployment (Google Cloud Run)
 
-The `Deploy` workflow tests every push to `main` and then deploys the Docker
+My `Deploy` workflow tests every push to `main` and then deploys the Docker
 image to Cloud Run. The deploy step is skipped until the repository is configured.
 
 1. In a Google Cloud project, enable the Cloud Run, Cloud Build, Artifact Registry and BigQuery APIs.
@@ -138,14 +152,6 @@ To run the container locally:
 docker build -t timewise .
 docker run -p 8080:8080 timewise
 ```
-
-## Acknowledgements
-
-TimeWise builds on a productivity app I developed with Team Purple in the
-CodePath Tech Exchange GenAI course. This version restructures that code into a
-layered package, replaces Vertex AI with the Gemini API, adds a local SQLite
-backend, recovery-code password resets, the weekly trend and persistent task
-completion, and adds a test suite.
 
 ## License
 

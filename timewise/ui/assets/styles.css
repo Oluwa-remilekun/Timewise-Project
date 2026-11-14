@@ -1,0 +1,88 @@
+/* Gradient banner at the top of every page. */
+.st-key-hero,
+.st-key-auth-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 1.75rem 2rem;
+  border-radius: 1.4rem;
+  background: linear-gradient(120deg, #0b7a6e 0%, #135d75 55%, #1e3a5f 100%);
+  box-shadow: 0 18px 36px -24px rgba(11, 122, 110, 0.9);
+}
+
+.st-key-hero::before,
+.st-key-auth-hero::before {
+  content: "";
+  position: absolute;
+  top: -70px;
+  right: -50px;
+  width: 230px;
+  height: 230px;
+  border-radius: 50%;
+  background: rgba(245, 184, 61, 0.28);
+  pointer-events: none;
+}
+
+.st-key-hero::after,
+.st-key-auth-hero::after {
+  content: "";
+  position: absolute;
+  bottom: -90px;
+  right: 120px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: rgba(249, 115, 91, 0.22);
+  pointer-events: none;
+}
+
+.st-key-hero h1,
+.st-key-hero p,
+.st-key-auth-hero h1,
+.st-key-auth-hero h3,
+.st-key-auth-hero p {
+  color: #ffffff !important;
+}
+
+.st-key-hero h1,
+.st-key-auth-hero h1 {
+  padding-top: 0;
+}
+
+.st-key-auth-hero {
+  padding: 2.75rem 2.5rem;
+  min-height: 30rem;
+}
+
+/* Cards: metrics and any container whose key starts with "card". */
+[data-testid="stMetric"],
+[class*="st-key-card"] {
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(29, 43, 54, 0.05), 0 14px 28px -22px rgba(29, 43, 54, 0.45);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+[data-testid="stMetric"]:hover,
+[class*="st-key-card"]:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 1px 2px rgba(29, 43, 54, 0.05), 0 20px 32px -22px rgba(29, 43, 54, 0.55);
+}
+
+/* Day verdict banner on the Time Analyser. */
+.st-key-verdict {
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  border-left: 6px solid #f5b83d;
+  background: #fff7e3;
+}
+
+.st-key-verdict p {
+  margin: 0;
+}
+
+/* Signed-in user summary at the bottom of the sidebar. */
+.st-key-user-card {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.07);
+}

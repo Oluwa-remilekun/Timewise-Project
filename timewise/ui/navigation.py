@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from timewise.ui import session
+from timewise.ui import session, theme
 from timewise.ui.components.user_menu import render_user_menu
 from timewise.ui.pages.analyser import render_analyser_page
 from timewise.ui.pages.calendar import render_calendar_page
@@ -53,7 +53,14 @@ def _build_pages() -> dict:
 def run_signed_in_app() -> None:
     pages = _build_pages()
     session.set_pages(pages)
-    current_page = st.navigation(list(pages.values()), position="top")
+    st.logo(theme.LOGO, size="large", icon_image=theme.ICON)
+    current_page = st.navigation(
+        {
+            "": [pages["home"]],
+            "Track": [pages["analyser"]],
+            "Plan": [pages["todo"], pages["calendar"], pages["reminders"]],
+        }
+    )
 
     render_user_menu()
     session.show_flash()
