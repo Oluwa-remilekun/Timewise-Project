@@ -170,3 +170,58 @@ def test_parse_event_rejects_unusable_replies(gemini, reply):
     gemini.reply = reply
     with pytest.raises(AIUnavailableError, match="not a valid event"):
         event_parser.parse_event("Call tomorrow", NOW)
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        '```json\n{"title": "Honors thesis meeting", "start": "2026-11-27T14:00", '
+        '"end": "2026-11-27T15:00"}\n```',
+        '[{"title": "Honors thesis meeting", "start": "2026-11-27T14:00", '
+        '"end": "2026-11-27T15:00"}]',
+        '{"title": "Honors thesis meeting", "start": "2026-11-27T14:00:00Z", '
+        '"end": "2026-11-27T15:00:00Z"}',
+        '{"title": "Honors thesis meeting", "start": "2026-11-27T14:00"}',
+        '{"title": "Honors thesis meeting", "start": "2026-11-27T14:00", "end": null}',
+    ],
+)
+def test_parse_event_tolerates_common_reply_shapes(gemini, reply):
+    gemini.reply = reply
+
+    draft = event_parser.parse_event(
+        "meeting with tempest henning for honors thesis discussion on friday nov 27 at 2pm",
+        datetime(2026, 11, 26, 10, 0),
+    )
+
+    assert draft == event_parser.EventDraft(
+        "Honors thesis meeting", datetime(2026, 11, 27, 14, 0), datetime(2026, 11, 27, 15, 0)
+    )
+
+
+def test_unusable_event_reply_gives_a_user_facing_reason(gemini):
+    gemini.reply = "Sure! Your meeting is on Friday."
+    with pytest.raises(AIUnavailableError) as raised:
+        event_parser.parse_event("meeting friday", NOW)
+    assert "not with a usable event" in raised.value.reason
+
+
+@pytest.mark.parametrize(
+    ("message", "expected"),
+    [
+        ("400 INVALID_ARGUMENT. API key not valid. Please pass a valid API key.", "API key"),
+        ("403 PERMISSION_DENIED.", "API key"),
+        ("404 NOT_FOUND. models/gemini-x is not found for API version v1beta", "not available"),
+        ("429 RESOURCE_EXHAUSTED. Quota exceeded.", "free-tier limit"),
+        ("Connection reset by peer", "could not be reached"),
+    ],
+)
+def test_sdk_errors_are_explained_to_the_user(gemini, message, expected):
+    gemini.error = RuntimeError(message)
+    with pytest.raises(AIUnavailableError) as raised:
+        client.generate_text("hello", system_instruction="be brief")
+    assert expected in raised.value.reason
+
+
+def test_missing_key_reason_and_fallback_note():
+    advice = advisor.activity_advice(SUMMARY, ACTIVITIES, TODAY)
+    assert advice.note == "Set GEMINI_API_KEY to enable AI features."

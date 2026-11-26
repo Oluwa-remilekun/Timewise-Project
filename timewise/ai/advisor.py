@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 class Advice:
     text: str
     is_ai_generated: bool
+    note: str = ""
 
 
 def _advise(prompt: str, fallback: str) -> Advice:
@@ -27,7 +28,7 @@ def _advise(prompt: str, fallback: str) -> Advice:
         text = generate_text(prompt, system_instruction=prompts.COACH_INSTRUCTION)
     except AIUnavailableError as error:
         logger.warning("Falling back to rule-based advice: %s", error)
-        return Advice(fallback, is_ai_generated=False)
+        return Advice(fallback, is_ai_generated=False, note=error.reason)
     return Advice(text, is_ai_generated=True)
 
 

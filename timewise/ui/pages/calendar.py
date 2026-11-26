@@ -119,8 +119,8 @@ def _parse_quick_event(text: str) -> EventDraft | None:
     try:
         with st.spinner("Reading your event..."):
             return parse_event(text, session.local_now())
-    except ai_client.AIUnavailableError:
-        st.error("That could not be turned into an event. Try rephrasing or add it manually.")
+    except ai_client.AIUnavailableError as error:
+        st.error(f"{error.reason} You can also add the event manually.")
         return None
 
 

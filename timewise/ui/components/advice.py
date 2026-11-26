@@ -33,7 +33,4 @@ def render_advice(
     advice = cached["advice"]
     st.markdown(advice.text)
     if not advice.is_ai_generated:
-        st.caption(
-            "Gemini is unavailable, so these are rule-based tips. "
-            "Set GEMINI_API_KEY to enable AI suggestions."
-        )
+        st.caption(f"Showing rule-based tips instead of AI suggestions. {advice.note}")
