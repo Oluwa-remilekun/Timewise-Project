@@ -3,6 +3,7 @@
 import pytest
 
 from timewise import config, database
+from timewise.ai import client
 from timewise.auth import passwords
 
 
@@ -15,6 +16,7 @@ def isolated_environment(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "load_dotenv", lambda *args, **kwargs: False)
     monkeypatch.setattr(config, "_streamlit_secret", lambda name: None)
     monkeypatch.setattr(passwords, "_ITERATIONS", 1_000)
+    monkeypatch.setitem(client._state, "model", None)
     config.get_settings.cache_clear()
     database.get_database.cache_clear()
     yield

@@ -36,7 +36,17 @@ def gemini(monkeypatch):
             raise fake.error
         return SimpleNamespace(text=fake.reply)
 
-    sdk_client = SimpleNamespace(models=SimpleNamespace(generate_content=generate_content))
+    fake.models = []
+
+    def list_models():
+        return [
+            SimpleNamespace(name=f"models/{name}", supported_actions=["generateContent"])
+            for name in fake.models
+        ]
+
+    sdk_client = SimpleNamespace(
+        models=SimpleNamespace(generate_content=generate_content, list=list_models)
+    )
     monkeypatch.setattr(client, "_get_client", lambda: sdk_client)
     return fake
 
@@ -225,3 +235,46 @@ def test_sdk_errors_are_explained_to_the_user(gemini, message, expected):
 def test_missing_key_reason_and_fallback_note():
     advice = advisor.activity_advice(SUMMARY, ACTIVITIES, TODAY)
     assert advice.note == "Set GEMINI_API_KEY to enable AI features."
+
+
+@pytest.mark.parametrize(
+    ("names", "expected"),
+    [
+        (["gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite"], "gemini-2.5-flash"),
+        (["gemini-2.5-pro", "gemini-2.5-flash-lite"], "gemini-2.5-flash-lite"),
+        (["gemini-3-flash-preview", "gemini-2.5-flash"], "gemini-2.5-flash"),
+        (["gemini-3-flash-preview", "gemini-2.5-flash-image"], "gemini-3-flash-preview"),
+        (["gemini-2.5-flash", "gemini-2.5-flash-001"], "gemini-2.5-flash"),
+        (["gemini-2.5-pro"], "gemini-2.5-pro"),
+        (["text-embedding-004", "gemini-embedding-001", "imagen-4"], None),
+        ([], None),
+    ],
+)
+def test_choose_model_prefers_the_newest_stable_flash_model(names, expected):
+    assert client.choose_model(names) == expected
+
+
+def test_missing_model_is_replaced_by_an_available_one(gemini):
+    calls = []
+
+    def generate_content(**kwargs):
+        calls.append(kwargs["model"])
+        if kwargs["model"] == "gemini-flash-latest":
+            raise RuntimeError("404 NOT_FOUND. models/gemini-flash-latest is not found")
+        return SimpleNamespace(text="- Plan ahead.")
+
+    gemini.models = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "text-embedding-004"]
+    client._get_client().models.generate_content = generate_content
+
+    assert client.generate_text("hello", system_instruction="be brief") == "- Plan ahead."
+    assert client.generate_text("again", system_instruction="be brief") == "- Plan ahead."
+    assert calls == ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.5-flash"]
+
+
+def test_missing_model_without_a_replacement_is_explained(gemini):
+    gemini.error = RuntimeError("404 NOT_FOUND. models/gemini-flash-latest is not found")
+    gemini.models = ["text-embedding-004"]
+    with pytest.raises(AIUnavailableError) as raised:
+        client.generate_text("hello", system_instruction="be brief")
+    assert "not available" in raised.value.reason
+    assert client._state["model"] is None

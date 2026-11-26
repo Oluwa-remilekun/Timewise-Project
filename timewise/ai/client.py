@@ -1,6 +1,8 @@
 """Thin wrapper around the Gemini API (Google AI Studio free tier)."""
 
 import logging
+import re
+from collections.abc import Iterable
 from functools import lru_cache
 
 from google import genai
@@ -34,6 +36,60 @@ def explain_failure(error: Exception, model: str) -> str:
     return "Gemini could not be reached. Try again in a moment."
 
 
+# Models that cannot answer a plain text prompt, or are not meant for production use.
+_UNSUITABLE_MODELS = ("image", "tts", "audio", "live", "embedding", "robotics", "computer-use")
+_UNSTABLE_MODELS = ("preview", "exp")
+
+# The model actually in use. It differs from the configured one only after the
+# configured model was reported missing and a replacement was discovered.
+_state: dict[str, str | None] = {"model": None}
+
+
+def _version_key(name: str) -> tuple[float, int]:
+    """Sort by model generation (the 2.5 in gemini-2.5-flash), then prefer the shortest alias."""
+    match = re.search(r"\d+(?:\.\d+)?", name)
+    return (float(match.group()) if match else 0.0), -len(name)
+
+
+def choose_model(names: Iterable[str]) -> str | None:
+    """Pick the newest stable Flash model from the names a key can use.
+
+    Falls back to Flash-Lite, then any text model, and to preview models only
+    when nothing stable is available.
+    """
+    usable = [
+        name
+        for name in names
+        if name.startswith("gemini") and not any(word in name for word in _UNSUITABLE_MODELS)
+    ]
+    stable = [name for name in usable if not any(word in name for word in _UNSTABLE_MODELS)]
+    candidates = stable or usable
+    preferences = (
+        lambda name: "flash" in name and "lite" not in name,
+        lambda name: "flash" in name,
+        lambda name: True,
+    )
+    for preferred in preferences:
+        matches = [name for name in candidates if preferred(name)]
+        if matches:
+            return max(matches, key=_version_key)
+    return None
+
+
+def _list_text_models() -> list[str]:
+    names = []
+    for model in _get_client().models.list():
+        actions = model.supported_actions or []
+        if "generateContent" in actions and model.name:
+            names.append(model.name.removeprefix("models/"))
+    return names
+
+
+def _is_missing_model(error: Exception) -> bool:
+    detail = str(error).lower()
+    return "404" in detail or "not_found" in detail or "not found" in detail
+
+
 def is_configured() -> bool:
     return bool(get_settings().gemini_api_key)
 
@@ -61,20 +117,49 @@ def generate_text(
         temperature=temperature,
         response_mime_type="application/json" if json_output else "text/plain",
     )
-    model = get_settings().gemini_model
+    model = _state["model"] or get_settings().gemini_model
     try:
-        response = _get_client().models.generate_content(
-            model=model, contents=prompt, config=config
-        )
-        text = (response.text or "").strip()
+        text = _generate(model, prompt, config)
     except Exception as error:  # network, quota and API errors all degrade the same way
-        logger.warning("Gemini request failed: %s", error)
-        raise AIUnavailableError(
-            f"Gemini request failed: {error}", reason=explain_failure(error, model)
-        ) from error
+        replacement = _replacement_for(model, error)
+        if replacement is None:
+            logger.warning("Gemini request failed: %s", error)
+            raise AIUnavailableError(
+                f"Gemini request failed: {error}", reason=explain_failure(error, model)
+            ) from error
+        return generate_text(
+            prompt,
+            system_instruction=system_instruction,
+            temperature=temperature,
+            json_output=json_output,
+        )
 
     if not text:
         raise AIUnavailableError(
             "Gemini returned an empty response.", reason="Gemini returned an empty reply."
         )
     return text
+
+
+def _generate(model: str, prompt: str, config: types.GenerateContentConfig) -> str:
+    response = _get_client().models.generate_content(model=model, contents=prompt, config=config)
+    return (response.text or "").strip()
+
+
+def _replacement_for(model: str, error: Exception) -> str | None:
+    """Switch to an available model when ``model`` does not exist for this key.
+
+    Returns the new model name, or None when no switch was made.
+    """
+    if not _is_missing_model(error) or _state["model"] not in (None, model):
+        return None
+    try:
+        replacement = choose_model(_list_text_models())
+    except Exception as list_error:
+        logger.warning("Could not list Gemini models: %s", list_error)
+        return None
+    if replacement is None or replacement == model:
+        return None
+    logger.warning("Gemini model %r is unavailable; using %r instead.", model, replacement)
+    _state["model"] = replacement
+    return replacement
