@@ -31,10 +31,15 @@ def explain_failure(error: Exception, model: str) -> str:
         return "Gemini rejected the API key. Create a new key and update GEMINI_API_KEY."
     if "not found" in detail or "404" in detail:
         return f"The model {model!r} is not available. Set GEMINI_MODEL to another model."
+    if "timed out" in detail or "timeout" in detail or "deadline" in detail:
+        return "Gemini took too long to reply. Try again in a moment."
     if "quota" in detail or "resource_exhausted" in detail or "429" in detail:
         return "The Gemini free-tier limit was reached. Try again in a minute."
     return "Gemini could not be reached. Try again in a moment."
 
+
+# Give up on a request after this long rather than leaving the user waiting.
+REQUEST_TIMEOUT_MS = 20_000
 
 # Models that cannot answer a plain text prompt, or are not meant for production use.
 _UNSUITABLE_MODELS = ("image", "tts", "audio", "live", "embedding", "robotics", "computer-use")
@@ -96,7 +101,13 @@ def is_configured() -> bool:
 
 @lru_cache(maxsize=1)
 def _get_client() -> genai.Client:
-    return genai.Client(api_key=get_settings().gemini_api_key)
+    return genai.Client(
+        api_key=get_settings().gemini_api_key,
+        http_options=types.HttpOptions(
+            timeout=REQUEST_TIMEOUT_MS,
+            retry_options=types.HttpRetryOptions(attempts=2),
+        ),
+    )
 
 
 def generate_text(

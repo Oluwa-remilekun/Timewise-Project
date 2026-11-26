@@ -223,6 +223,7 @@ def test_unusable_event_reply_gives_a_user_facing_reason(gemini):
         ("404 NOT_FOUND. models/gemini-x is not found for API version v1beta", "not available"),
         ("429 RESOURCE_EXHAUSTED. Quota exceeded.", "free-tier limit"),
         ("Connection reset by peer", "could not be reached"),
+        ("ReadTimeout: The read operation timed out", "took too long"),
     ],
 )
 def test_sdk_errors_are_explained_to_the_user(gemini, message, expected):
@@ -278,3 +279,15 @@ def test_missing_model_without_a_replacement_is_explained(gemini):
         client.generate_text("hello", system_instruction="be brief")
     assert "not available" in raised.value.reason
     assert client._state["model"] is None
+
+
+def test_client_gives_up_on_slow_requests(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    get_settings.cache_clear()
+    client._get_client.cache_clear()
+    try:
+        options = client._get_client()._api_client._http_options
+        assert options.timeout == client.REQUEST_TIMEOUT_MS
+        assert options.retry_options.attempts == 2
+    finally:
+        client._get_client.cache_clear()
