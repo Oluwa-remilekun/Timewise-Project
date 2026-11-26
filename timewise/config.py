@@ -1,4 +1,8 @@
-"""Application settings, read once from environment variables (and a local .env file)."""
+"""Application settings, read once from the environment.
+
+Each setting comes from an environment variable (or a local .env file) and falls
+back to Streamlit secrets, which is where Streamlit Community Cloud stores them.
+"""
 
 import os
 from dataclasses import dataclass
@@ -27,18 +31,36 @@ class Settings:
     cookie_secret: str
 
 
+def _streamlit_secret(name: str) -> str | None:
+    """Return a top-level Streamlit secret, or None when there is none."""
+    try:
+        import streamlit as st
+
+        value = st.secrets.get(name)
+    except Exception:  # no secrets file, or not running under Streamlit
+        return None
+    return None if value is None else str(value)
+
+
+def _setting(name: str, default: str = "") -> str:
+    value = os.getenv(name, "").strip()
+    if not value:
+        value = (_streamlit_secret(name) or "").strip()
+    return value or default
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     load_dotenv(PROJECT_ROOT / ".env")
 
-    backend = os.getenv("TIMEWISE_DATABASE", "sqlite").strip().lower()
+    backend = _setting("TIMEWISE_DATABASE", "sqlite").lower()
     if backend not in SUPPORTED_BACKENDS:
         raise ConfigurationError(
             f"TIMEWISE_DATABASE must be one of {SUPPORTED_BACKENDS}, got {backend!r}."
         )
 
-    bigquery_project = os.getenv("TIMEWISE_BIGQUERY_PROJECT", "").strip()
-    cookie_secret = os.getenv("TIMEWISE_COOKIE_SECRET", "").strip()
+    bigquery_project = _setting("TIMEWISE_BIGQUERY_PROJECT")
+    cookie_secret = _setting("TIMEWISE_COOKIE_SECRET")
     if backend == "bigquery":
         if not bigquery_project:
             raise ConfigurationError(
@@ -49,7 +71,7 @@ def get_settings() -> Settings:
                 "TIMEWISE_COOKIE_SECRET is required when TIMEWISE_DATABASE=bigquery."
             )
 
-    sqlite_path = Path(os.getenv("TIMEWISE_SQLITE_PATH", "data/timewise.db"))
+    sqlite_path = Path(_setting("TIMEWISE_SQLITE_PATH", "data/timewise.db"))
     if not sqlite_path.is_absolute():
         sqlite_path = PROJECT_ROOT / sqlite_path
 
@@ -57,8 +79,8 @@ def get_settings() -> Settings:
         database_backend=backend,
         sqlite_path=sqlite_path,
         bigquery_project=bigquery_project,
-        bigquery_dataset=os.getenv("TIMEWISE_BIGQUERY_DATASET", "timewise").strip(),
-        gemini_api_key=os.getenv("GEMINI_API_KEY", "").strip(),
-        gemini_model=os.getenv("GEMINI_MODEL", "gemini-flash-latest").strip(),
+        bigquery_dataset=_setting("TIMEWISE_BIGQUERY_DATASET", "timewise"),
+        gemini_api_key=_setting("GEMINI_API_KEY"),
+        gemini_model=_setting("GEMINI_MODEL", "gemini-flash-latest"),
         cookie_secret=cookie_secret or LOCAL_COOKIE_SECRET,
     )

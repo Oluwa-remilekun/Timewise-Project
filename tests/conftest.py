@@ -13,6 +13,7 @@ def isolated_environment(tmp_path, monkeypatch):
     monkeypatch.setenv("TIMEWISE_COOKIE_SECRET", "test-secret")
     monkeypatch.setenv("GEMINI_API_KEY", "")
     monkeypatch.setattr(config, "load_dotenv", lambda *args, **kwargs: False)
+    monkeypatch.setattr(config, "_streamlit_secret", lambda name: None)
     monkeypatch.setattr(passwords, "_ITERATIONS", 1_000)
     config.get_settings.cache_clear()
     database.get_database.cache_clear()
